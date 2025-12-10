@@ -4,7 +4,7 @@ from PIL import Image
 import io
 
 # ตั้งค่าหน้าเว็บ
-st.set_page_config(page_title="SVD Image Compression", layout="wide", page_icon="🖼️")
+st.set_page_config(page_title="SVD Image Compression")
 
 st.title("SVD Image Compression")
 st.write("เว็บไซต์นี้เป็นส่วนหนึ่งของโปรเจกต์สำหรับแสดงการบีบอัดภาพด้วยเทคนิค Singular Value Decomposition (SVD)")
@@ -94,3 +94,4 @@ if len(compare_list) > 0:
             )
 else:
     st.info("เลือกภาพด้านบนเพื่อแสดงผลการเปรียบเทียบ")
+
