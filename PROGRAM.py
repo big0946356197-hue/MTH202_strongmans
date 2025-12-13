@@ -19,7 +19,7 @@ def compress_channel(channel, k):
     S_k = np.diag(S[:k])
     return U[:, :k] @ S_k @ Vt[:k, :]
 
-# ลดขนาดรูปอัตโนมัติ (เพื่อให้เว็บทำงานเร็วขึ้น)
+# ลดขนาดรูปอัตโนมัติ
 def svd_compress_image(image, k):
 
     max_size = 900
@@ -94,4 +94,3 @@ if len(compare_list) > 0:
             )
 else:
     st.info("เลือกภาพด้านบนเพื่อแสดงผลการเปรียบเทียบ")
-
