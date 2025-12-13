@@ -97,7 +97,7 @@ if uploaded and st.session_state["compressed_image"] is not None:
 
         _, svd_bytes, ratio = calculate_memory(original_image, rank)
         st.write(f"Memory: {svd_bytes / 1024:.2f} KB")
-        st.write(f"Ratio vs original: {ratio:.3f}")
+        st.write(f"Ratio / original: {ratio:.3f}")
 
         buf = io.BytesIO()
         st.session_state["compressed_image"].save(buf, format="JPEG")
@@ -108,3 +108,4 @@ if uploaded and st.session_state["compressed_image"] is not None:
             file_name=f"svd_rank_{rank}.jpg",
             mime="image/jpeg"
         )
+
