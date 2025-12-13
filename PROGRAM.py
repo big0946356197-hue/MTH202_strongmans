@@ -1,25 +1,25 @@
 import streamlit as st
 import numpy as np
-import pandas as pd
 from PIL import Image
 import io
 
 # Page setup
 st.set_page_config(
-    page_title="SVD Image Compression & Memory Comparison",
+    page_title="SVD Image Compression",
     layout="wide"
 )
 
 st.title("SVD Image Compression")
 st.write(
     """
-โปรเจกต์นี้แสดงการบีบอัดภาพด้วย **Singular Value Decomposition (SVD)** 
+โปรเจกต์นี้แสดงการบีบอัดภาพด้วย **Singular Value Decomposition (SVD)**
+พร้อมการเปรียบเทียบการใช้หน่วยความจำของภาพ
 """
 )
 
 # Session state
-if "compressed_images" not in st.session_state:
-    st.session_state["compressed_images"] = []
+if "compressed_image" not in st.session_state:
+    st.session_state["compressed_image"] = None
 
 # SVD functions
 def compress_channel(channel, k):
@@ -30,7 +30,7 @@ def compress_channel(channel, k):
 
 def svd_compress_image(image, k):
     image = image.copy()
-    image.thumbnail((900, 900))  # limit size for performance
+    image.thumbnail((900, 900))
 
     arr = np.array(image)
 
@@ -44,31 +44,15 @@ def svd_compress_image(image, k):
     return Image.fromarray(result)
 
 # Memory calculation
-def memory_comparison_table(image, k_list):
-    """
-    Create memory comparison table like the reference image
-    """
+def calculate_memory(image, k):
     m, n, c = np.array(image).shape
 
-    # original image: uint8
-    orig_bytes = m * n * c
+    original_bytes = m * n * c
+    svd_bytes = 3 * k * (m + n + 1) * 8
 
-    rows = []
+    ratio = svd_bytes / original_bytes
 
-    for k in k_list:
-        params = 3 * k * (m + n + 1)      # U + S + V for RGB
-        svd_bytes = params * 8            # float64
-        ratio = svd_bytes / orig_bytes
-
-        rows.append({
-            "k": k,
-            "params(k)": params,
-            "factors bytes": svd_bytes,
-            "orig bytes": orig_bytes,
-            "ratio vs orig": ratio
-        })
-
-    return pd.DataFrame(rows)
+    return original_bytes, svd_bytes, ratio
 
 # Upload & controls
 st.subheader("อัปโหลดภาพและเลือก Rank")
@@ -85,91 +69,42 @@ rank = st.slider(
     value=50
 )
 
-colA, colB = st.columns(2)
-
-with colA:
-    if uploaded:
-        original_image = Image.open(uploaded).convert("RGB")
-        st.image(original_image, caption="ภาพต้นฉบับ", width=350)
-
-with colB:
-    if uploaded and st.button("บีบอัดภาพด้วย SVD"):
-        compressed_image = svd_compress_image(original_image, rank)
-
-        st.session_state["compressed_images"].append({
-            "name": uploaded.name,
-            "rank": rank,
-            "image": compressed_image
-        })
-
-        st.success("บีบอัดภาพสำเร็จ")
-
-# Compressed images gallery
-st.subheader("ภาพที่บีบอัดแล้ว")
-
-compare_list = []
-
-if len(st.session_state["compressed_images"]) == 0:
-    st.info("ยังไม่มีภาพที่ถูกบีบอัด")
-else:
-    grid = st.columns(4)
-    for i, item in enumerate(st.session_state["compressed_images"]):
-        with grid[i % 4]:
-            st.image(
-                item["image"],
-                caption=f"{item['name']} (k={item['rank']})",
-                width=150
-            )
-            if st.checkbox("เลือกเพื่อเปรียบเทียบ", key=f"cmp_{i}"):
-                compare_list.append(item)
-
-# Image comparison section
-st.subheader("การเปรียบเทียบภาพ")
-
-if len(compare_list) == 0:
-    st.info("เลือกภาพด้านบนเพื่อเปรียบเทียบ")
-else:
-    for img in compare_list:
-        col1, col2 = st.columns([3, 1])
-
-        with col1:
-            st.image(
-                img["image"],
-                caption=f"{img['name']} (k={img['rank']})",
-                width=450
-            )
-
-        with col2:
-            buf = io.BytesIO()
-            img["image"].save(buf, format="JPEG")
-
-            st.download_button(
-                label="ดาวน์โหลดภาพ",
-                data=buf.getvalue(),
-                file_name=f"{img['name']}_k{img['rank']}.jpg",
-                mime="image/jpeg",
-                key=f"dl_{img['name']}_{img['rank']}"
-            )
-
-# Memory comparison table section
-st.subheader("Memory Comparison")
-
 if uploaded:
-    k_values = [5, 20, 50, 100, 500, 2500]
+    original_image = Image.open(uploaded).convert("RGB")
 
-    df = memory_comparison_table(original_image, k_values)
+    if st.button("บีบอัดภาพ"):
+        compressed_image = svd_compress_image(original_image, rank)
+        st.session_state["compressed_image"] = compressed_image
 
-    st.dataframe(
-        df.style.format({
-            "params(k)": "{:,}",
-            "factors bytes": "{:,}",
-            "orig bytes": "{:,}",
-            "ratio vs orig": "{:.3f}"
-        }),
-        use_container_width=True
-    )
+# Image & memory comparison
+if uploaded and st.session_state["compressed_image"] is not None:
+    st.subheader("การเปรียบเทียบภาพและหน่วยความจำ")
 
-    st.caption(
-        "ตารางนี้แสดงการเปรียบเทียบการใช้หน่วยความจำของการบีบอัดแบบ SVD "
-        "เมื่อเลือกค่า Rank (k) ต่างกัน เทียบกับภาพต้นฉบับ"
-    )
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.image(original_image, caption="Original Image", width=400)
+
+        orig_bytes, _, _ = calculate_memory(original_image, rank)
+        st.write(f"Memory: {orig_bytes / 1024:.2f} KB")
+
+    with col2:
+        st.image(
+            st.session_state["compressed_image"],
+            caption=f"SVD Image (rank = {rank})",
+            width=400
+        )
+
+        _, svd_bytes, ratio = calculate_memory(original_image, rank)
+        st.write(f"Memory: {svd_bytes / 1024:.2f} KB")
+        st.write(f"Ratio vs original: {ratio:.3f}")
+
+        buf = io.BytesIO()
+        st.session_state["compressed_image"].save(buf, format="JPEG")
+
+        st.download_button(
+            label="ดาวน์โหลดภาพ",
+            data=buf.getvalue(),
+            file_name=f"svd_rank_{rank}.jpg",
+            mime="image/jpeg"
+        )
